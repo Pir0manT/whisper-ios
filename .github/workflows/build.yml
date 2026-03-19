@@ -1,0 +1,56 @@
+name: Build iOS IPA
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Download whisper model
+        run: |
+          mkdir -p models
+          curl -L -o models/ggml-medium.bin \
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin"
+          ls -lh models/ggml-medium.bin
+
+      - name: Build whisper.xcframework
+        run: |
+          cd whisper.cpp
+          chmod +x build-xcframework.sh
+          ./build-xcframework.sh
+          ls -la build-apple/whisper.xcframework/
+
+      - name: Build Xcode project
+        run: |
+          xcodebuild \
+            -project whisper.objc.xcodeproj \
+            -scheme whisper.objc \
+            -configuration Release \
+            -arch arm64 \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            DEVELOPMENT_TEAM="" \
+            build \
+            CONFIGURATION_BUILD_DIR=$PWD/build
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/whisper.objc.app Payload/
+          zip -r whisper-ios.ipa Payload
+          ls -lh whisper-ios.ipa
+
+      - name: Upload IPA to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: whisper-ios.ipa
+          generate_release_notes: true

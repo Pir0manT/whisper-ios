@@ -1,0 +1,15 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserdata
+*.xcworkspace
+
+# Models (downloaded during CI)
+models/*.bin
+
+# macOS
+.DS_Store
+
+# Payload
+Payload/
+*.ipa
